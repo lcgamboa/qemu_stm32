@@ -172,16 +172,7 @@ remote_gpio_thread(void * arg)
 
    if ((recv (s->sockfd, & buff, 1, 0)) > 0)
     {
-
-     if (buff == 0x00)//EXIT
-      {
-       exit (-1);
-      }
-     else if (buff == 0xFF)//RESET
-      {
-       qemu_system_reset_request ();
-      }
-     else if (buff & 0x80)
+     if (buff & 0x80)
       {
        qemu_irq_raise (s->pin_irq[buff & 0x7F]);
       }
