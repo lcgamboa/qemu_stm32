@@ -28,7 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 
-#ifndef WIN
+#ifndef _WIN32
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<sys/un.h>
@@ -37,8 +37,8 @@
 #else
 #include<winsock2.h>
 #include<ws2tcpip.h>
-WORD wVersionRequested = 2;
-WSADATA wsaData;
+//WORD wVersionRequested = 2;
+//WSADATA wsaData;
 #endif
 
 typedef struct
@@ -78,8 +78,11 @@ pout_irq_handler(void *opaque, int n, int level)
      val = (0x7F & n);
      if (send (s->sockfd, &val, 1, 0) != 1)
       {
-       printf ("send error : %s \n", strerror (errno));
-       exit (1);
+       if (errno != EINTR) 
+        {
+         printf ("send error : %s \n", strerror (errno));
+         exit (1);
+        }
       }
     }
    break;
@@ -89,8 +92,11 @@ pout_irq_handler(void *opaque, int n, int level)
      val = (0x7F & n) | 0x80;
      if (send (s->sockfd, &val, 1, 0) != 1)
       {
-       printf ("send error : %s \n", strerror (errno));
-       exit (1);
+        if (errno != EINTR) 
+        {
+          printf ("send error : %s \n", strerror (errno));
+          exit (1);
+        }
       }
     }
    break;
@@ -146,19 +152,37 @@ static void *
 remote_gpio_thread(void * arg)
 {
  Stm32P103 *s = (Stm32P103 *) arg;
- struct sockaddr_in serv;
+#ifdef _TCP_
+  struct sockaddr_in serv;
+#else
+  struct sockaddr_un serv;
+#endif
  unsigned char buff;
 
- if ((s->sockfd = socket (PF_INET, SOCK_STREAM, 0)) < 0)
+ 
+#ifdef _TCP_
+  if ((s->sockfd = socket (PF_INET, SOCK_STREAM, 0)) < 0)
   {
    printf ("socket error : %s \n", strerror (errno));
    exit (1);
   }
+ 
  memset (&serv, 0, sizeof (serv));
  serv.sin_family = AF_INET;
  serv.sin_addr.s_addr = inet_addr ("127.0.0.1");
  serv.sin_port = htons (2200);
-
+#else
+  if ((s->sockfd = socket (PF_UNIX, SOCK_STREAM, 0)) < 0)
+  {
+   printf ("socket error : %s \n", strerror (errno));
+   exit (1);
+  }
+ 
+  memset (&serv, 0, sizeof (serv));
+  serv.sun_family = AF_UNIX;
+  serv.sun_path[0]=0;
+  strncpy(serv.sun_path+1, "picsimlab_qemu", sizeof(serv.sun_path)-2);
+#endif
  while (connect (s->sockfd, (struct sockaddr *) & serv, sizeof (serv)) < 0)
   {
    printf ("connect error : %s \n", strerror (errno));

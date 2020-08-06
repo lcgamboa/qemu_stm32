@@ -5844,3 +5844,20 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
         bdrv_flush_io_queue(bs->file);
     }
 }
+
+
+
+
+int
+ffs (int valu)
+{
+  register int bit;
+
+  if (valu == 0)
+    return 0;
+
+  for (bit = 1; !(valu & 1); bit++)
+	valu >>= 1;
+
+  return bit;
+}

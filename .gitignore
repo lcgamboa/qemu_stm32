@@ -105,3 +105,6 @@ cscope.*
 tags
 TAGS
 *~
+config_w32.sh
+config_w64.sh
+pixman
