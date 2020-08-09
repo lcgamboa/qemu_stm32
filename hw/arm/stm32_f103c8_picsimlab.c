@@ -40,8 +40,7 @@
 #else
 #include<winsock2.h>
 #include<ws2tcpip.h>
-WORD wVersionRequested = 2;
-WSADATA wsaData;
+#define _TCP_ 
 #endif
 
 typedef struct
@@ -155,6 +154,7 @@ remote_gpio_thread(void * arg)
 
 
 #ifdef _TCP_
+  
   if ((s->sockfd = socket (PF_INET, SOCK_STREAM, 0)) < 0)
   {
    printf ("socket error : %s \n", strerror (errno));

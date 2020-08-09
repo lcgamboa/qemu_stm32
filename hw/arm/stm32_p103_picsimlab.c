@@ -37,8 +37,7 @@
 #else
 #include<winsock2.h>
 #include<ws2tcpip.h>
-//WORD wVersionRequested = 2;
-//WSADATA wsaData;
+#define _TCP_
 #endif
 
 typedef struct

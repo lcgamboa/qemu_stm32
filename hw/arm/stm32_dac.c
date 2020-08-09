@@ -361,10 +361,11 @@ static void stm32_dac_conv_DACC1(void *opaque)
 
    // TODO: factor this with stm32_dav_conv_DACC2
    printf("DAC1output:%d\n",(s->Vref*(s->DAC_DOR1 & 0xfff))/4095);
+   /*
    FILE* fichier=fopen("DAC_OUT_PUT1.txt", "a");
    fprintf(fichier, "%d\n",(s->Vref*(s->DAC_DOR1 & 0xfff))/4095);
    fclose(fichier);
-   
+   */
 }
 
 
@@ -379,9 +380,11 @@ static void stm32_dac_conv_DACC2(void *opaque)
 
    // TODO: factor this with stm32_dav_conv_DACC1
    printf("DAC2output:%d\n",(s->Vref*(s->DAC_DOR2 & 0xfff))/4095);
+   /*
    FILE* fichier=fopen("DAC_OUT_PUT2.txt", "a");
    fprintf(fichier, "%d\n",(s->Vref*(s->DAC_DOR2 & 0xfff))/4095);
    fclose(fichier);
+   */
 }
 
 
@@ -392,13 +395,14 @@ static void stm32_dac_reset(DeviceState *dev)
    s->Vref=2400;
    s->inc_cnt2=true;
    s->inc_cnt1=true;
+   /*
    FILE* fichier=fopen("DAC_OUT_PUT1.txt", "w");
    fprintf(fichier, "****DAC_OUT_PUT1 : Result of conversion DAC channel 1****\n");
    fclose(fichier);
    fichier=fopen("DAC_OUT_PUT2.txt", "w");
    fprintf(fichier, "****DAC_OUT_PUT2 : Result of conversion DAC channel 2****\n");
    fclose(fichier);
-
+   */
 }
 
 static uint64_t stm32_dac_read(void *opaque, hwaddr offset,
