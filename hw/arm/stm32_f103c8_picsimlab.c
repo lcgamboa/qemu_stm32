@@ -151,6 +151,7 @@ remote_gpio_thread(void * arg)
   struct sockaddr_un serv;
 #endif
  unsigned char buff;
+ int n;
 
 
 #ifdef _TCP_
@@ -178,10 +179,13 @@ remote_gpio_thread(void * arg)
   strncpy(serv.sun_path+1, "picsimlab_qemu", sizeof(serv.sun_path)-2);
 #endif
   
+ n=0; 
  while (connect (s->sockfd, (struct sockaddr *) & serv, sizeof (serv)) < 0)
   {
    printf ("connect error : %s \n", strerror (errno));
    sleep (1);
+   if(n > 5)exit(-1);
+   n++;
   }
   
  s->connected = 1;
