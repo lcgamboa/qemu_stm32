@@ -7,8 +7,6 @@
  * Implementation based on
  * Olimex "STM-P103 Development Board Users Manual Rev. A, April 2008"
  *
- * Andre Beckus
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -40,14 +38,13 @@
 #else
 #include<winsock2.h>
 #include<ws2tcpip.h>
-#define _TCP_ 
+#define _TCP_
 #endif
 
 typedef struct
 {
  Stm32 *stm32;
 
- //bool last_button_pressed;
  qemu_irq pin_irq[49];
  qemu_irq *pout_irq;
 
@@ -78,123 +75,91 @@ pout_irq_handler(void *opaque, int n, int level)
    if (s->connected)
     {
      val = (0x7F & n);
+     //qemu_mutex_lock (&s->dat_lock);
      if (send (s->sockfd, &val, 1, 0) != 1)
       {
-        if (errno != EINTR) 
+       if (errno != EINTR)
         {
-          printf ("send error : %s \n", strerror (errno));
-          exit (1);
+         printf ("send error : %s \n", strerror (errno));
+         exit (1);
         }
       }
+     //qemu_mutex_unlock (&s->dat_lock);
     }
    break;
   case 1:
    if (s->connected)
     {
      val = (0x7F & n) | 0x80;
+     //qemu_mutex_lock (&s->dat_lock);
      if (send (s->sockfd, &val, 1, 0) != 1)
       {
-        if (errno != EINTR) 
+       if (errno != EINTR)
         {
-          printf ("send error : %s \n", strerror (errno));
-          exit (1);
+         printf ("send error : %s \n", strerror (errno));
+         exit (1);
         }
       }
+     //qemu_mutex_unlock (&s->dat_lock);
     }
    break;
   }
 }
-
-/*
-static void stm32_p103_key_event(void *opaque, int keycode)
-{
-    Stm32_f103c8 *s = (Stm32_f103c8 *)opaque;
-    bool make;
-    int core_keycode;
-
-    if((keycode & 0x80) == 0) {
-        make = true;
-        core_keycode = keycode;
-    } else {
-        make = false;
-        core_keycode = keycode & 0x7f;
-    }
-
-    // Responds when a "B" key press is received.
-    // Inside the monitor, you can type "sendkey b"
-   
-    if(core_keycode == 0x30) {
-        if(make) {
-            if(!s->last_button_pressed) {
-                qemu_irq_raise(s->button_irq);
-                s->last_button_pressed = true;
-            }
-        } else {
-            if(s->last_button_pressed) {
-                qemu_irq_lower(s->button_irq);
-                s->last_button_pressed = false;
-            }
-        }
-    }
-    return;
-
-}
- */
 
 static void *
 remote_gpio_thread(void * arg)
 {
  Stm32_f103c8 *s = (Stm32_f103c8 *) arg;
 #ifdef _TCP_
-  struct sockaddr_in serv;
+ struct sockaddr_in serv;
 #else
-  struct sockaddr_un serv;
+ struct sockaddr_un serv;
 #endif
  unsigned char buff;
  int n;
 
 
 #ifdef _TCP_
-  
-  if ((s->sockfd = socket (PF_INET, SOCK_STREAM, 0)) < 0)
+ if ((s->sockfd = socket (PF_INET, SOCK_STREAM, 0)) < 0)
+  {
+   printf ("socket error : %s \n", strerror (errno));
+   exit (1);
+  }
+
+ memset (&serv, 0, sizeof (serv));
+ serv.sin_family = AF_INET;
+ serv.sin_addr.s_addr = inet_addr ("127.0.0.1");
+ serv.sin_port = htons (2200);
+#else
+ if ((s->sockfd = socket (PF_UNIX, SOCK_STREAM, 0)) < 0)
   {
    printf ("socket error : %s \n", strerror (errno));
    exit (1);
   }
  
  memset (&serv, 0, sizeof (serv));
- serv.sin_family = AF_INET;
- serv.sin_addr.s_addr = inet_addr ("127.0.0.1");
- serv.sin_port = htons (2200);
-#else
-   if ((s->sockfd = socket (PF_UNIX, SOCK_STREAM, 0)) < 0)
-  {
-   printf ("socket error : %s \n", strerror (errno));
-   exit (1);
-  }
- 
-  memset (&serv, 0, sizeof (serv));
-  serv.sun_family = AF_UNIX;
-  serv.sun_path[0]=0;
-  strncpy(serv.sun_path+1, "picsimlab_qemu", sizeof(serv.sun_path)-2);
+ serv.sun_family = AF_UNIX;
+ serv.sun_path[0] = 0;
+ strncpy (serv.sun_path + 1, "picsimlab_qemu", sizeof (serv.sun_path) - 2);
 #endif
-  
- n=0; 
+
+ n = 0;
  while (connect (s->sockfd, (struct sockaddr *) & serv, sizeof (serv)) < 0)
   {
    printf ("connect error : %s \n", strerror (errno));
    sleep (1);
-   if(n > 5)exit(-1);
+   if (n > 5)exit (-1);
    n++;
   }
-  
+ 
  s->connected = 1;
 
  while (1)
   {
-
+   //qemu_mutex_lock (&s->dat_lock);
    if ((recv (s->sockfd, & buff, 1, 0)) > 0)
     {
+      qemu_mutex_lock_iothread();
      if (buff & 0x80)
       {
        qemu_irq_raise (s->pin_irq[buff & 0x7F]);
@@ -203,7 +168,9 @@ remote_gpio_thread(void * arg)
       {
        qemu_irq_lower (s->pin_irq[buff & 0x7F]);
       }
+      qemu_mutex_unlock_iothread();
     }
+   //qemu_mutex_unlock (&s->dat_lock);
   }
 
  return NULL;
@@ -334,9 +301,6 @@ stm32_f103c8_picsimlab_init(MachineState *machine)
  //48 VDD
 
 
- //qemu_add_kbd_event_handler(stm32_p103_key_event, s);
-
-
  /* Connect RS232 to UART 1 */
  stm32_uart_connect (
                      (Stm32Uart *) s->uart1,
@@ -354,7 +318,7 @@ stm32_f103c8_picsimlab_init(MachineState *machine)
                      serial_hds[2],
                      STM32_USART3_NO_REMAP);
 
- //qemu_mutex_init(&s->dat_lock);
+ //qemu_mutex_init (&s->dat_lock);
  qemu_thread_create (&s->thread, "remote_gpio", remote_gpio_thread, s, QEMU_THREAD_JOINABLE);
 
 
