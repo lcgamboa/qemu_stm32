@@ -41,6 +41,8 @@
 #define _TCP_
 #endif
 
+extern unsigned short ADC_values[31];
+
 typedef struct
 {
  Stm32 *stm32;
@@ -136,7 +138,7 @@ remote_gpio_thread(void * arg)
    printf ("socket error : %s \n", strerror (errno));
    exit (1);
   }
- 
+
  memset (&serv, 0, sizeof (serv));
  serv.sun_family = AF_UNIX;
  serv.sun_path[0] = 0;
@@ -151,7 +153,7 @@ remote_gpio_thread(void * arg)
    if (n > 5)exit (-1);
    n++;
   }
- 
+
  s->connected = 1;
 
  while (1)
@@ -159,16 +161,23 @@ remote_gpio_thread(void * arg)
    //qemu_mutex_lock (&s->dat_lock);
    if ((recv (s->sockfd, & buff, 1, 0)) > 0)
     {
-      qemu_mutex_lock_iothread();
-     if (buff & 0x80)
+     qemu_mutex_lock_iothread ();
+     if (buff & 0x40)//analog
       {
-       qemu_irq_raise (s->pin_irq[buff & 0x7F]);
+       recv (s->sockfd, (unsigned char *) &ADC_values[buff & 0x1F], 2, 0);
       }
-     else
+     else//digital
       {
-       qemu_irq_lower (s->pin_irq[buff & 0x7F]);
+       if (buff & 0x80)
+        {
+         qemu_irq_raise (s->pin_irq[buff & 0x7F]);
+        }
+       else
+        {
+         qemu_irq_lower (s->pin_irq[buff & 0x7F]);
+        }
       }
-      qemu_mutex_unlock_iothread();
+     qemu_mutex_unlock_iothread ();
     }
    //qemu_mutex_unlock (&s->dat_lock);
   }

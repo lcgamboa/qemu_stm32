@@ -579,6 +579,10 @@ and ADC2
  */
 #define ADC_CR2_ADON                    (1 << 0)
 
+
+
+unsigned short ADC_values[31];
+
 /* --- Function prototypes ------------------------------------------------- */
 
 struct Stm32Adc {
@@ -714,7 +718,8 @@ static void stm32_adc_start_conv(Stm32Adc *s)
       s->ADC_DR= (s->Vref=rand()%(s->Vdda-2400+1) + 2400); //Vref [2400 Vdda] mv
       }
       else{
-      s->ADC_DR=((int)(1024.*(sin(2*M_PI*qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)/1e9)+1.))&0xfff);
+      //s->ADC_DR=((int)(1024.*(sin(2*M_PI*qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)/1e9)+1.))&0xfff);
+      s->ADC_DR=ADC_values[channel_number]&0xFFF;
       }
       s->ADC_SR&=~ADC_SR_EOC;  // jmf : indicates ongoing conversion
       s->ADC_CR2&=~ADC_CR2_SWSTART;

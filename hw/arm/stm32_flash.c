@@ -42,7 +42,7 @@ typedef struct Stm32Flash {
 	SysBusDevice busdev;   
     BlockDriverState * blks;
     hwaddr base_address;
-	uint32_t size;
+    uint32_t size;
     MemoryRegion iomem;
     void *data;
     hwaddr SP_init;
@@ -343,7 +343,7 @@ stm32_flash_regs_write(void *arg, hwaddr addr, uint64_t data, unsigned int size)
               printf("erased\n");
 #endif              
 			} else {
-				printf("ADDRESS: %u\n", s->AR);
+				printf("ADDRESS: %u 0X%08X MAX=%u\n", s->AR, s->AR, STM32_FLASH_ADDR_START+flash->size - 1024);
 				hw_error("stm32_flash: Attempted to erase flash memory page while address is not alligned!");
 			}
             

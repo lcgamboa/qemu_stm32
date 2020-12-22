@@ -41,6 +41,9 @@
 #define _TCP_
 #endif
 
+
+extern unsigned short ADC_values[31];
+
 typedef struct
 {
  Stm32 *stm32;
@@ -136,7 +139,7 @@ remote_gpio_thread(void * arg)
    printf ("socket error : %s \n", strerror (errno));
    exit (1);
   }
- 
+
  memset (&serv, 0, sizeof (serv));
  serv.sun_family = AF_UNIX;
  serv.sun_path[0] = 0;
@@ -151,7 +154,7 @@ remote_gpio_thread(void * arg)
    if (n > 5)exit (-1);
    n++;
   }
- 
+
  s->connected = 1;
 
  while (1)
@@ -159,16 +162,23 @@ remote_gpio_thread(void * arg)
    //qemu_mutex_lock (&s->dat_lock);
    if ((recv (s->sockfd, & buff, 1, 0)) > 0)
     {
-      qemu_mutex_lock_iothread();
-     if (buff & 0x80)
+     qemu_mutex_lock_iothread ();
+     if (buff & 0x40)//analog
       {
-       qemu_irq_raise (s->pin_irq[buff & 0x7F]);
+       recv (s->sockfd, (unsigned char *) &ADC_values[buff & 0x1F], 2, 0);
       }
-     else
+     else//digital
       {
-       qemu_irq_lower (s->pin_irq[buff & 0x7F]);
+       if (buff & 0x80)
+        {
+         qemu_irq_raise (s->pin_irq[buff & 0x7F]);
+        }
+       else
+        {
+         qemu_irq_lower (s->pin_irq[buff & 0x7F]);
+        }
       }
-      qemu_mutex_unlock_iothread();
+     qemu_mutex_unlock_iothread ();
     }
    //qemu_mutex_unlock (&s->dat_lock);
   }
@@ -212,70 +222,121 @@ stm32_p103_picsimlab_init(MachineState *machine)
 
  //0
  //1 VBAT
- qdev_connect_gpio_out (s->gpio_c, 13,  s->pout_irq[2]); s->pin_irq[2] = qdev_get_gpio_in (s->gpio_c, 13);
- qdev_connect_gpio_out (s->gpio_c, 14,  s->pout_irq[3]);  s->pin_irq[3] = qdev_get_gpio_in (s->gpio_c, 14);
- qdev_connect_gpio_out (s->gpio_c, 15,  s->pout_irq[4]); s->pin_irq[4] = qdev_get_gpio_in (s->gpio_c, 15);
- qdev_connect_gpio_out (s->gpio_d, 0,  s->pout_irq[5]); s->pin_irq[5] = qdev_get_gpio_in (s->gpio_d, 0);
- qdev_connect_gpio_out (s->gpio_d, 1,  s->pout_irq[6]); s->pin_irq[6] = qdev_get_gpio_in (s->gpio_d, 1);
+ qdev_connect_gpio_out (s->gpio_c, 13, s->pout_irq[2]);
+ s->pin_irq[2] = qdev_get_gpio_in (s->gpio_c, 13);
+ qdev_connect_gpio_out (s->gpio_c, 14, s->pout_irq[3]);
+ s->pin_irq[3] = qdev_get_gpio_in (s->gpio_c, 14);
+ qdev_connect_gpio_out (s->gpio_c, 15, s->pout_irq[4]);
+ s->pin_irq[4] = qdev_get_gpio_in (s->gpio_c, 15);
+ qdev_connect_gpio_out (s->gpio_d, 0, s->pout_irq[5]);
+ s->pin_irq[5] = qdev_get_gpio_in (s->gpio_d, 0);
+ qdev_connect_gpio_out (s->gpio_d, 1, s->pout_irq[6]);
+ s->pin_irq[6] = qdev_get_gpio_in (s->gpio_d, 1);
  //7 RST
- qdev_connect_gpio_out (s->gpio_c, 0,  s->pout_irq[8]); s->pin_irq[8] = qdev_get_gpio_in (s->gpio_c, 0);
- qdev_connect_gpio_out (s->gpio_c, 1,  s->pout_irq[9]); s->pin_irq[9] = qdev_get_gpio_in (s->gpio_c, 1);
- qdev_connect_gpio_out (s->gpio_c, 2,  s->pout_irq[10]); s->pin_irq[10] = qdev_get_gpio_in (s->gpio_c, 2);
- qdev_connect_gpio_out (s->gpio_c, 3,  s->pout_irq[11]); s->pin_irq[11] = qdev_get_gpio_in (s->gpio_c, 3);
+ qdev_connect_gpio_out (s->gpio_c, 0, s->pout_irq[8]);
+ s->pin_irq[8] = qdev_get_gpio_in (s->gpio_c, 0);
+ qdev_connect_gpio_out (s->gpio_c, 1, s->pout_irq[9]);
+ s->pin_irq[9] = qdev_get_gpio_in (s->gpio_c, 1);
+ qdev_connect_gpio_out (s->gpio_c, 2, s->pout_irq[10]);
+ s->pin_irq[10] = qdev_get_gpio_in (s->gpio_c, 2);
+ qdev_connect_gpio_out (s->gpio_c, 3, s->pout_irq[11]);
+ s->pin_irq[11] = qdev_get_gpio_in (s->gpio_c, 3);
  //12 VSSA
  //13 VDDA                                            //TODO pin input irqs
- qdev_connect_gpio_out (s->gpio_a, 0,  s->pout_irq[14]); s->pin_irq[14] = qdev_get_gpio_in (s->gpio_a, 0);
- qdev_connect_gpio_out (s->gpio_a, 1,  s->pout_irq[15]); s->pin_irq[15] = qdev_get_gpio_in (s->gpio_a, 1);
- qdev_connect_gpio_out (s->gpio_a, 2,  s->pout_irq[16]); s->pin_irq[16] = qdev_get_gpio_in (s->gpio_a, 2);
+ qdev_connect_gpio_out (s->gpio_a, 0, s->pout_irq[14]);
+ s->pin_irq[14] = qdev_get_gpio_in (s->gpio_a, 0);
+ qdev_connect_gpio_out (s->gpio_a, 1, s->pout_irq[15]);
+ s->pin_irq[15] = qdev_get_gpio_in (s->gpio_a, 1);
+ qdev_connect_gpio_out (s->gpio_a, 2, s->pout_irq[16]);
+ s->pin_irq[16] = qdev_get_gpio_in (s->gpio_a, 2);
 
- qdev_connect_gpio_out (s->gpio_a, 3,  s->pout_irq[17]); s->pin_irq[17] = qdev_get_gpio_in (s->gpio_a, 3);
+ qdev_connect_gpio_out (s->gpio_a, 3, s->pout_irq[17]);
+ s->pin_irq[17] = qdev_get_gpio_in (s->gpio_a, 3);
  //18 VSS
  //19 VDD
- qdev_connect_gpio_out (s->gpio_a, 4,  s->pout_irq[20]); s->pin_irq[20] = qdev_get_gpio_in (s->gpio_a, 4);
- qdev_connect_gpio_out (s->gpio_a, 5,  s->pout_irq[21]); s->pin_irq[21] = qdev_get_gpio_in (s->gpio_a, 5);
- qdev_connect_gpio_out (s->gpio_a, 6,  s->pout_irq[22]); s->pin_irq[22] = qdev_get_gpio_in (s->gpio_a, 6);
- qdev_connect_gpio_out (s->gpio_a, 7,  s->pout_irq[23]); s->pin_irq[23] = qdev_get_gpio_in (s->gpio_a, 7);
- qdev_connect_gpio_out (s->gpio_c, 4,  s->pout_irq[24]); s->pin_irq[24] = qdev_get_gpio_in (s->gpio_c, 4);
- qdev_connect_gpio_out (s->gpio_c, 5,  s->pout_irq[25]); s->pin_irq[25] = qdev_get_gpio_in (s->gpio_c, 5);
- qdev_connect_gpio_out (s->gpio_b, 0,  s->pout_irq[26]); s->pin_irq[26] = qdev_get_gpio_in (s->gpio_b, 0);
- qdev_connect_gpio_out (s->gpio_b, 1,  s->pout_irq[27]); s->pin_irq[27] = qdev_get_gpio_in (s->gpio_b, 1);
- qdev_connect_gpio_out (s->gpio_b, 2,  s->pout_irq[28]); s->pin_irq[28] = qdev_get_gpio_in (s->gpio_b, 2);
- qdev_connect_gpio_out (s->gpio_b, 10,  s->pout_irq[29]); s->pin_irq[29] = qdev_get_gpio_in (s->gpio_b, 10);
- qdev_connect_gpio_out (s->gpio_b, 11,  s->pout_irq[30]); s->pin_irq[30] = qdev_get_gpio_in (s->gpio_b, 11);
+ qdev_connect_gpio_out (s->gpio_a, 4, s->pout_irq[20]);
+ s->pin_irq[20] = qdev_get_gpio_in (s->gpio_a, 4);
+ qdev_connect_gpio_out (s->gpio_a, 5, s->pout_irq[21]);
+ s->pin_irq[21] = qdev_get_gpio_in (s->gpio_a, 5);
+ qdev_connect_gpio_out (s->gpio_a, 6, s->pout_irq[22]);
+ s->pin_irq[22] = qdev_get_gpio_in (s->gpio_a, 6);
+ qdev_connect_gpio_out (s->gpio_a, 7, s->pout_irq[23]);
+ s->pin_irq[23] = qdev_get_gpio_in (s->gpio_a, 7);
+ qdev_connect_gpio_out (s->gpio_c, 4, s->pout_irq[24]);
+ s->pin_irq[24] = qdev_get_gpio_in (s->gpio_c, 4);
+ qdev_connect_gpio_out (s->gpio_c, 5, s->pout_irq[25]);
+ s->pin_irq[25] = qdev_get_gpio_in (s->gpio_c, 5);
+ qdev_connect_gpio_out (s->gpio_b, 0, s->pout_irq[26]);
+ s->pin_irq[26] = qdev_get_gpio_in (s->gpio_b, 0);
+ qdev_connect_gpio_out (s->gpio_b, 1, s->pout_irq[27]);
+ s->pin_irq[27] = qdev_get_gpio_in (s->gpio_b, 1);
+ qdev_connect_gpio_out (s->gpio_b, 2, s->pout_irq[28]);
+ s->pin_irq[28] = qdev_get_gpio_in (s->gpio_b, 2);
+ qdev_connect_gpio_out (s->gpio_b, 10, s->pout_irq[29]);
+ s->pin_irq[29] = qdev_get_gpio_in (s->gpio_b, 10);
+ qdev_connect_gpio_out (s->gpio_b, 11, s->pout_irq[30]);
+ s->pin_irq[30] = qdev_get_gpio_in (s->gpio_b, 11);
  //31 VSS
  //32 VDD
 
- qdev_connect_gpio_out (s->gpio_b, 12,  s->pout_irq[33]); s->pin_irq[33] = qdev_get_gpio_in (s->gpio_b, 12);
- qdev_connect_gpio_out (s->gpio_b, 13,  s->pout_irq[34]); s->pin_irq[34] = qdev_get_gpio_in (s->gpio_b, 13);
- qdev_connect_gpio_out (s->gpio_b, 14,  s->pout_irq[35]); s->pin_irq[35] = qdev_get_gpio_in (s->gpio_b, 14);
- qdev_connect_gpio_out (s->gpio_b, 15,  s->pout_irq[36]); s->pin_irq[36] = qdev_get_gpio_in (s->gpio_b, 15);
- qdev_connect_gpio_out (s->gpio_c, 6,  s->pout_irq[37]); s->pin_irq[37] = qdev_get_gpio_in (s->gpio_c, 6);
- qdev_connect_gpio_out (s->gpio_c, 7,  s->pout_irq[38]); s->pin_irq[38] = qdev_get_gpio_in (s->gpio_c, 7);
- qdev_connect_gpio_out (s->gpio_c, 8,  s->pout_irq[39]); s->pin_irq[39] = qdev_get_gpio_in (s->gpio_c, 8);
- qdev_connect_gpio_out (s->gpio_c, 9,  s->pout_irq[40]); s->pin_irq[40] = qdev_get_gpio_in (s->gpio_c, 9);
- qdev_connect_gpio_out (s->gpio_a, 8,  s->pout_irq[41]); s->pin_irq[41] = qdev_get_gpio_in (s->gpio_a, 8);
- qdev_connect_gpio_out (s->gpio_a, 9,  s->pout_irq[42]); s->pin_irq[42] = qdev_get_gpio_in (s->gpio_a, 9);
- qdev_connect_gpio_out (s->gpio_a, 10,  s->pout_irq[43]); s->pin_irq[43] = qdev_get_gpio_in (s->gpio_a, 10);
- qdev_connect_gpio_out (s->gpio_a, 11,  s->pout_irq[44]); s->pin_irq[44] = qdev_get_gpio_in (s->gpio_a, 11);
- qdev_connect_gpio_out (s->gpio_a, 12,  s->pout_irq[45]); s->pin_irq[45] = qdev_get_gpio_in (s->gpio_a, 12);
- qdev_connect_gpio_out (s->gpio_a, 13,  s->pout_irq[46]); s->pin_irq[46] = qdev_get_gpio_in (s->gpio_a, 13);
+ qdev_connect_gpio_out (s->gpio_b, 12, s->pout_irq[33]);
+ s->pin_irq[33] = qdev_get_gpio_in (s->gpio_b, 12);
+ qdev_connect_gpio_out (s->gpio_b, 13, s->pout_irq[34]);
+ s->pin_irq[34] = qdev_get_gpio_in (s->gpio_b, 13);
+ qdev_connect_gpio_out (s->gpio_b, 14, s->pout_irq[35]);
+ s->pin_irq[35] = qdev_get_gpio_in (s->gpio_b, 14);
+ qdev_connect_gpio_out (s->gpio_b, 15, s->pout_irq[36]);
+ s->pin_irq[36] = qdev_get_gpio_in (s->gpio_b, 15);
+ qdev_connect_gpio_out (s->gpio_c, 6, s->pout_irq[37]);
+ s->pin_irq[37] = qdev_get_gpio_in (s->gpio_c, 6);
+ qdev_connect_gpio_out (s->gpio_c, 7, s->pout_irq[38]);
+ s->pin_irq[38] = qdev_get_gpio_in (s->gpio_c, 7);
+ qdev_connect_gpio_out (s->gpio_c, 8, s->pout_irq[39]);
+ s->pin_irq[39] = qdev_get_gpio_in (s->gpio_c, 8);
+ qdev_connect_gpio_out (s->gpio_c, 9, s->pout_irq[40]);
+ s->pin_irq[40] = qdev_get_gpio_in (s->gpio_c, 9);
+ qdev_connect_gpio_out (s->gpio_a, 8, s->pout_irq[41]);
+ s->pin_irq[41] = qdev_get_gpio_in (s->gpio_a, 8);
+ qdev_connect_gpio_out (s->gpio_a, 9, s->pout_irq[42]);
+ s->pin_irq[42] = qdev_get_gpio_in (s->gpio_a, 9);
+ qdev_connect_gpio_out (s->gpio_a, 10, s->pout_irq[43]);
+ s->pin_irq[43] = qdev_get_gpio_in (s->gpio_a, 10);
+ qdev_connect_gpio_out (s->gpio_a, 11, s->pout_irq[44]);
+ s->pin_irq[44] = qdev_get_gpio_in (s->gpio_a, 11);
+ qdev_connect_gpio_out (s->gpio_a, 12, s->pout_irq[45]);
+ s->pin_irq[45] = qdev_get_gpio_in (s->gpio_a, 12);
+ qdev_connect_gpio_out (s->gpio_a, 13, s->pout_irq[46]);
+ s->pin_irq[46] = qdev_get_gpio_in (s->gpio_a, 13);
  //47 VSS
  //48 VDD
 
- qdev_connect_gpio_out (s->gpio_a, 14,  s->pout_irq[49]); s->pin_irq[49] = qdev_get_gpio_in (s->gpio_a, 14);
- qdev_connect_gpio_out (s->gpio_a, 15,  s->pout_irq[50]); s->pin_irq[50] = qdev_get_gpio_in (s->gpio_a, 15);
- qdev_connect_gpio_out (s->gpio_c, 10,  s->pout_irq[51]); s->pin_irq[51] = qdev_get_gpio_in (s->gpio_c, 10);
- qdev_connect_gpio_out (s->gpio_c, 11,  s->pout_irq[52]); s->pin_irq[52] = qdev_get_gpio_in (s->gpio_c, 11);
- qdev_connect_gpio_out (s->gpio_c, 12,  s->pout_irq[53]); s->pin_irq[53] = qdev_get_gpio_in (s->gpio_c, 12);
- qdev_connect_gpio_out (s->gpio_d, 2,  s->pout_irq[54]); s->pin_irq[54] = qdev_get_gpio_in (s->gpio_d, 2);
- qdev_connect_gpio_out (s->gpio_b, 3,  s->pout_irq[55]); s->pin_irq[55] = qdev_get_gpio_in (s->gpio_b, 3);
- qdev_connect_gpio_out (s->gpio_b, 4,  s->pout_irq[56]); s->pin_irq[56] = qdev_get_gpio_in (s->gpio_b, 4);
- qdev_connect_gpio_out (s->gpio_b, 5,  s->pout_irq[57]); s->pin_irq[57] = qdev_get_gpio_in (s->gpio_b, 5);
- qdev_connect_gpio_out (s->gpio_b, 6,  s->pout_irq[58]); s->pin_irq[58] = qdev_get_gpio_in (s->gpio_b, 6);
- qdev_connect_gpio_out (s->gpio_b, 7,  s->pout_irq[59]); s->pin_irq[59] = qdev_get_gpio_in (s->gpio_b, 7);
+ qdev_connect_gpio_out (s->gpio_a, 14, s->pout_irq[49]);
+ s->pin_irq[49] = qdev_get_gpio_in (s->gpio_a, 14);
+ qdev_connect_gpio_out (s->gpio_a, 15, s->pout_irq[50]);
+ s->pin_irq[50] = qdev_get_gpio_in (s->gpio_a, 15);
+ qdev_connect_gpio_out (s->gpio_c, 10, s->pout_irq[51]);
+ s->pin_irq[51] = qdev_get_gpio_in (s->gpio_c, 10);
+ qdev_connect_gpio_out (s->gpio_c, 11, s->pout_irq[52]);
+ s->pin_irq[52] = qdev_get_gpio_in (s->gpio_c, 11);
+ qdev_connect_gpio_out (s->gpio_c, 12, s->pout_irq[53]);
+ s->pin_irq[53] = qdev_get_gpio_in (s->gpio_c, 12);
+ qdev_connect_gpio_out (s->gpio_d, 2, s->pout_irq[54]);
+ s->pin_irq[54] = qdev_get_gpio_in (s->gpio_d, 2);
+ qdev_connect_gpio_out (s->gpio_b, 3, s->pout_irq[55]);
+ s->pin_irq[55] = qdev_get_gpio_in (s->gpio_b, 3);
+ qdev_connect_gpio_out (s->gpio_b, 4, s->pout_irq[56]);
+ s->pin_irq[56] = qdev_get_gpio_in (s->gpio_b, 4);
+ qdev_connect_gpio_out (s->gpio_b, 5, s->pout_irq[57]);
+ s->pin_irq[57] = qdev_get_gpio_in (s->gpio_b, 5);
+ qdev_connect_gpio_out (s->gpio_b, 6, s->pout_irq[58]);
+ s->pin_irq[58] = qdev_get_gpio_in (s->gpio_b, 6);
+ qdev_connect_gpio_out (s->gpio_b, 7, s->pout_irq[59]);
+ s->pin_irq[59] = qdev_get_gpio_in (s->gpio_b, 7);
  //60 BOOT0
- qdev_connect_gpio_out (s->gpio_b, 8,  s->pout_irq[61]); s->pin_irq[61] = qdev_get_gpio_in (s->gpio_b, 8);
- qdev_connect_gpio_out (s->gpio_b, 9,  s->pout_irq[62]); s->pin_irq[62] = qdev_get_gpio_in (s->gpio_b, 9);
+ qdev_connect_gpio_out (s->gpio_b, 8, s->pout_irq[61]);
+ s->pin_irq[61] = qdev_get_gpio_in (s->gpio_b, 8);
+ qdev_connect_gpio_out (s->gpio_b, 9, s->pout_irq[62]);
+ s->pin_irq[62] = qdev_get_gpio_in (s->gpio_b, 9);
  //63 VSS
  //64 VDD
 
